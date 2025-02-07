@@ -3,14 +3,18 @@ services:
     name: cmp-scanner
     env: node
     plan: free
+    preDeployCommand: |
+      sudo apt-get update
+      sudo apt-get install -y chromium-browser
     buildCommand: |
       npm install
-      npx puppeteer browsers install chrome  # Install Chromium explicitly
     startCommand: node server.js
     envVars:
       - key: NODE_VERSION
         value: 22
       - key: PORT
         value: 3000
+      - key: PUPPETEER_SKIP_DOWNLOAD
+        value: "true"
       - key: PUPPETEER_EXECUTABLE_PATH
-        value: /opt/render/.cache/puppeteer/chrome/linux-133.0.6943.53/chrome
+        value: "/usr/bin/chromium-browser"
