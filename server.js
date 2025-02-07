@@ -1,5 +1,6 @@
 const express = require("express");
 const puppeteer = require("puppeteer");
+const { cmpProviders, cookiePatterns } = require('./cmp-rules');
 
 const app = express();
 const PORT = 3000;
@@ -29,30 +30,67 @@ app.get("/scan", async (req, res) => {
             timeout: 30000 
         });
 
-        const detectionResults = await page.evaluate(() => {
-            const providers = {
-                "OneTrust": () => !!window.OneTrust || document.querySelector("script[src*='onetrust.com']"),
-                "InMobi": () => document.querySelector("script[src*='inmobi.com']"),
-                "Sourcepoint": () => document.querySelector("script[src*='sourcepoint.com']"),
-                "TrustArc": () => document.querySelector("script[src*='trustarc.com']"),
-                "Admiral": () => document.querySelector("script[src*='admiral.com']"),
-                "Transcend": () => document.querySelector("script[src*='transcend.io']"),
-                "Osano": () => document.querySelector("script[src*='cmp.osano.com']"),
-                "Cookiebot": () => !!window.CookieConsent || document.querySelector("script[src*='cookiebot.com']"),
-                "CookieYes": () => document.querySelector("script[src*='cookieyes.com']"),
-                "TrustCassie": () => document.querySelector("script[src*='trustcassie.com']"),
-                "Termly": () => document.querySelector("script[src*='termly.io']"),
-                "Ketch": () => document.querySelector("script[src*='ketch.com']"),
-                "CookieScript": () => document.querySelector("script[src*='cookie-script.com']"),
-                "Nextroll": () => document.querySelector("script[src*='nextroll.com']")
-            };
+        // Convert functions to strings before injecting
+        const serializedProviders = {};
+        for (const [key, fn] of Object.entries(cmpProviders)) {
+            serializedProviders[key] = fn.toString();
+        }
 
+        // Inject the detection rules
+        await page.evaluate((providers, patterns) => {
+            window.cmpProviders = providers;
+            window.cookiePatterns = patterns;
+        }, serializedProviders, cookiePatterns);
+
+        const detectionResults = await page.evaluate(async () => {
             let detectedCMPs = [];
             let detectionDetails = {};
+            let storageEvidence = {
+                localStorage: {},
+                sessionStorage: {},
+                indexedDB: []
+            };
 
-            // Check for CMPs and collect evidence
-            for (const [name, check] of Object.entries(providers)) {
+            // Helper function to safely check storage
+            const checkStorage = (storage, type) => {
+                const items = {};
                 try {
+                    for (let i = 0; i < storage.length; i++) {
+                        const key = storage.key(i);
+                        if (key.toLowerCase().match(/(consent|privacy|gdpr|ccpa|cookie|cmp)/)) {
+                            try {
+                                items[key] = storage.getItem(key);
+                            } catch (e) {
+                                items[key] = "Unable to read value";
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Error checking ${type}:`, e);
+                }
+                return items;
+            };
+
+            // Check localStorage
+            storageEvidence.localStorage = checkStorage(localStorage, 'localStorage');
+
+            // Check sessionStorage
+            storageEvidence.sessionStorage = checkStorage(sessionStorage, 'sessionStorage');
+
+            // Check IndexedDB
+            try {
+                const databases = await window.indexedDB.databases();
+                storageEvidence.indexedDB = databases
+                    .filter(db => db.name.toLowerCase().match(/(consent|privacy|gdpr|ccpa|cookie|cmp)/))
+                    .map(db => db.name);
+            } catch (e) {
+                console.error('Error checking IndexedDB:', e);
+            }
+
+            // Convert the stringified functions back to functions and check for CMPs
+            for (const [name, fnStr] of Object.entries(window.cmpProviders)) {
+                try {
+                    const check = new Function('return ' + fnStr)();
                     if (check()) {
                         detectedCMPs.push(name);
                         
@@ -62,6 +100,16 @@ app.get("/scan", async (req, res) => {
                                         name === "Cookiebot" ? !!window.CookieConsent : false,
                             scripts: Array.from(document.querySelectorAll(`script[src*='${name.toLowerCase()}']`))
                                         .map(script => script.src),
+                            storage: {
+                                localStorage: Object.entries(storageEvidence.localStorage)
+                                    .filter(([key]) => key.toLowerCase().includes(name.toLowerCase()))
+                                    .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {}),
+                                sessionStorage: Object.entries(storageEvidence.sessionStorage)
+                                    .filter(([key]) => key.toLowerCase().includes(name.toLowerCase()))
+                                    .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {}),
+                                indexedDB: storageEvidence.indexedDB
+                                    .filter(dbName => dbName.toLowerCase().includes(name.toLowerCase()))
+                            }
                         };
                         detectionDetails[name] = evidence;
                     }
@@ -70,31 +118,12 @@ app.get("/scan", async (req, res) => {
                 }
             }
 
-            // Check for cookies
-            const knownCookies = {
-                "euconsent-v2": "IAB TCF 2.0",
-                "didomi_*": "Didomi",
-                "consentUUID": "OneTrust",
-                "sp_*": "Sourcepoint",
-                "iab_consent": "IAB Framework",
-                "cookie_consent": "Generic Consent Storage",
-                "cookieyes-consent": "CookieYes",
-                "cc_cookie": "Civic Cookie Control",
-                "piwik_optin": "Piwik PRO",
-                "quantcast_choice": "Quantcast Choice",
-                "admiral_consent": "Admiral",
-                "transcend_consent": "Transcend",
-                "ketch_consent": "Ketch",
-                "cookie_script": "CookieScript",
-                "nextroll_consent": "Nextroll"
-            };
-
             let foundCookies = [];
             let cookieDetails = {};
 
             document.cookie.split("; ").forEach(cookie => {
                 const [key, value] = cookie.split("=");
-                for (const [pattern, name] of Object.entries(knownCookies)) {
+                for (const [pattern, name] of Object.entries(window.cookiePatterns)) {
                     if (key.match(new RegExp(pattern.replace("*", ".*")))) {
                         foundCookies.push(`${name} (${key})`);
                         cookieDetails[key] = {
@@ -114,6 +143,7 @@ app.get("/scan", async (req, res) => {
                 evidence: {
                     detectionDetails,
                     cookieDetails,
+                    storageEvidence,
                     allScripts: allScripts.filter(src => 
                         src.includes('consent') || 
                         src.includes('cookie') || 
@@ -127,6 +157,7 @@ app.get("/scan", async (req, res) => {
         await browser.close();
         res.json(detectionResults);
     } catch (error) {
+        console.error('Scan error:', error);
         if (browser) await browser.close();
         res.status(500).json({ 
             error: "Failed to scan the website", 

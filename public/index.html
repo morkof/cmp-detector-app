@@ -69,8 +69,10 @@
 </head>
 <body>
     <h2>🔍 CMP Detector</h2>
-    <input type="text" id="url" class="url-input" placeholder="Enter website URL (e.g., https://example.com)" size="50">
-    <button onclick="scan()">Scan</button>
+    <form onsubmit="event.preventDefault(); scan();">
+        <input type="text" id="url" class="url-input" placeholder="Enter website URL (e.g., https://example.com)" size="50">
+        <button type="submit">Scan</button>
+    </form>
     
     <div id="results"></div>
 
@@ -123,6 +125,33 @@
                         if (Object.keys(data.evidence.cookieDetails).length > 0) {
                             resultHTML += "<h4>Cookie Details:</h4>";
                             resultHTML += "<pre>" + JSON.stringify(data.evidence.cookieDetails, null, 2) + "</pre>";
+                        }
+
+                        // Storage Evidence
+                        if (data.evidence.storageEvidence) {
+                            resultHTML += "<h4>Storage Evidence:</h4>";
+                            
+                            // LocalStorage
+                            if (Object.keys(data.evidence.storageEvidence.localStorage).length > 0) {
+                                resultHTML += "<h5>LocalStorage:</h5>";
+                                resultHTML += "<pre>" + JSON.stringify(data.evidence.storageEvidence.localStorage, null, 2) + "</pre>";
+                            }
+                            
+                            // SessionStorage
+                            if (Object.keys(data.evidence.storageEvidence.sessionStorage).length > 0) {
+                                resultHTML += "<h5>SessionStorage:</h5>";
+                                resultHTML += "<pre>" + JSON.stringify(data.evidence.storageEvidence.sessionStorage, null, 2) + "</pre>";
+                            }
+                            
+                            // IndexedDB
+                            if (data.evidence.storageEvidence.indexedDB.length > 0) {
+                                resultHTML += "<h5>IndexedDB Databases:</h5>";
+                                resultHTML += "<ul>";
+                                data.evidence.storageEvidence.indexedDB.forEach(db => {
+                                    resultHTML += `<li>${db}</li>`;
+                                });
+                                resultHTML += "</ul>";
+                            }
                         }
 
                         // Relevant Scripts
