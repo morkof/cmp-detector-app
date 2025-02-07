@@ -1,5 +1,5 @@
 const express = require("express");
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-core");
 const { cmpProviders, cookiePatterns } = require('./cmp-rules');
 
 const app = express();
@@ -14,15 +14,37 @@ const getPuppeteerOptions = () => {
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
-                '--single-process'
+                '--single-process',
+                '--disable-gpu'
             ],
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium'
         };
     }
-    return {
-        headless: "new",
-        args: ['--no-sandbox']
-    };
+    
+    // Local development - try to find Chrome in standard locations
+    const possiblePaths = [
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS
+        '/usr/bin/google-chrome',                                      // Linux
+        '/usr/bin/chromium',                                          // Linux
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',  // Windows
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+    ];
+
+    for (const path of possiblePaths) {
+        try {
+            if (require('fs').existsSync(path)) {
+                return {
+                    headless: "new",
+                    args: ['--no-sandbox'],
+                    executablePath: path
+                };
+            }
+        } catch (e) {
+            console.error(`Error checking path ${path}:`, e);
+        }
+    }
+
+    throw new Error('Could not find Chrome/Chromium installation. Please install Chrome or set PUPPETEER_EXECUTABLE_PATH.');
 };
 
 app.use(express.static("public"));
@@ -37,11 +59,14 @@ app.get("/scan", async (req, res) => {
 
     let browser;
     try {
-        browser = await puppeteer.launch(getPuppeteerOptions());
+        const options = getPuppeteerOptions();
+        console.log('Launching browser with options:', options);
+        browser = await puppeteer.launch(options);
         
         const page = await browser.newPage();
         await page.setDefaultNavigationTimeout(30000);
         
+        console.log('Navigating to URL:', url);
         await page.goto(url, { 
             waitUntil: "networkidle0",
             timeout: 30000 
