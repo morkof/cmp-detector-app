@@ -1,0 +1,13 @@
+{
+  "name": "cmp-detector-app",
+  "version": "1.0.0",
+  "description": "A web-based CMP (Consent Management Platform) detection tool",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^24.2.0"
+  }
+}
