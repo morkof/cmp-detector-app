@@ -1,6 +1,7 @@
 const express = require("express");
 const puppeteer = require("puppeteer-core");
 const { cmpProviders, cookiePatterns } = require('./cmp-rules');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,6 +9,27 @@ const PORT = process.env.PORT || 3000;
 // Configure Puppeteer options based on environment
 const getPuppeteerOptions = () => {
     if (process.env.NODE_ENV === 'production') {
+        const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome';
+        console.log('Checking Chrome executable path:', executablePath);
+        try {
+            if (fs.existsSync(executablePath)) {
+                console.log('Chrome executable found at:', executablePath);
+            } else {
+                console.log('Chrome executable NOT found at:', executablePath);
+                // List contents of /usr/bin to help debug
+                if (fs.existsSync('/usr/bin')) {
+                    console.log('Contents of /usr/bin:');
+                    fs.readdirSync('/usr/bin').forEach(file => {
+                        if (file.includes('chrome') || file.includes('chromium')) {
+                            console.log('- ' + file);
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error checking Chrome executable:', error);
+        }
+
         return {
             headless: "new",
             args: [
@@ -17,7 +39,7 @@ const getPuppeteerOptions = () => {
                 '--single-process',
                 '--disable-gpu'
             ],
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium'
+            executablePath
         };
     }
     
@@ -32,7 +54,8 @@ const getPuppeteerOptions = () => {
 
     for (const path of possiblePaths) {
         try {
-            if (require('fs').existsSync(path)) {
+            if (fs.existsSync(path)) {
+                console.log('Found Chrome at:', path);
                 return {
                     headless: "new",
                     args: ['--no-sandbox'],
