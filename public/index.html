@@ -51,6 +51,20 @@
             width: 80%;
             max-width: 600px;
         }
+        @keyframes ellipsis {
+            0% { content: ""; }
+            25% { content: "."; }
+            50% { content: ".."; }
+            75% { content: "..."; }
+        }
+        
+        .loading::after {
+            content: "";
+            display: inline-block;
+            animation: ellipsis 1.5s infinite;
+            width: 20px;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
@@ -68,14 +82,16 @@
                 return;
             }
 
-            document.getElementById("results").innerHTML = "<p class='loading'>Scanning website...</p>";
+            document.getElementById("results").innerHTML = "<p class='loading'>Scanning website</p>";
 
             fetch(`/scan?url=${encodeURIComponent(url)}`)
                 .then(response => response.json())
                 .then(data => {
                     let resultHTML = "<h3>Results:</h3>";
+                    let hasResults = false;
 
                     if (data.detectedCMPs.length > 0) {
+                        hasResults = true;
                         resultHTML += "<p class='detected'>✅ Detected CMP Providers:</p><ul>";
                         data.detectedCMPs.forEach(cmp => resultHTML += `<li>${cmp}</li>`);
                         resultHTML += "</ul>";
@@ -84,6 +100,7 @@
                     }
 
                     if (data.foundCookies.length > 0) {
+                        hasResults = true;
                         resultHTML += "<p class='detected'>🍪 Detected Consent Cookies:</p><ul>";
                         data.foundCookies.forEach(cookie => resultHTML += `<li>${cookie}</li>`);
                         resultHTML += "</ul>";
@@ -91,8 +108,8 @@
                         resultHTML += "<p class='not-found'>❌ No consent cookies found.</p>";
                     }
 
-                    // Add evidence section
-                    if (data.evidence) {
+                    // Only show evidence section if we have results
+                    if (hasResults && data.evidence) {
                         resultHTML += "<div class='evidence-section'>";
                         resultHTML += "<h3 class='evidence-title'>🔍 Detection Evidence:</h3>";
 
