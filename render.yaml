@@ -1,16 +1,10 @@
 services:
   - type: web
-    name: cmp-scanner
+    name: cmp-detector
     env: node
-    plan: free
-    buildCommand: |
-      npm install
-      npx puppeteer browsers install chrome
+    buildCommand: npm install && npx puppeteer browsers install chrome
     startCommand: node server.js
     envVars:
-      - key: NODE_VERSION
-        value: 22
-      - key: PORT
-        value: 3000
-      - key: PUPPETEER_CACHE_DIR
-        value: "/opt/render/.cache/puppeteer"
+      - key: NODE_ENV
+        value: production
+    plan: free

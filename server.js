@@ -3,7 +3,27 @@ const puppeteer = require("puppeteer");
 const { cmpProviders, cookiePatterns } = require('./cmp-rules');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
+// Configure Puppeteer options based on environment
+const getPuppeteerOptions = () => {
+    if (process.env.NODE_ENV === 'production') {
+        return {
+            headless: "new",
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--single-process'
+            ],
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
+        };
+    }
+    return {
+        headless: "new",
+        args: ['--no-sandbox']
+    };
+};
 
 app.use(express.static("public"));
 
@@ -17,10 +37,7 @@ app.get("/scan", async (req, res) => {
 
     let browser;
     try {
-        browser = await puppeteer.launch({ 
-            headless: "new",
-            args: ['--no-sandbox']
-        });
+        browser = await puppeteer.launch(getPuppeteerOptions());
         
         const page = await browser.newPage();
         await page.setDefaultNavigationTimeout(30000);
@@ -166,4 +183,4 @@ app.get("/scan", async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`✅ Server running at http://localhost:3000`));
+app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));

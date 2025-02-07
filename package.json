@@ -1,13 +1,17 @@
 {
   "name": "cmp-detector-app",
   "version": "1.0.0",
-  "description": "A web-based CMP (Consent Management Platform) detection tool",
+  "description": "CMP Detection Tool",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "puppeteer": "^24.2.0"
+    "puppeteer": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
