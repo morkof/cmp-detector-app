@@ -9,7 +9,8 @@ const PORT = process.env.PORT || 3000;
 
 // Configure Puppeteer options based on environment
 const getPuppeteerOptions = () => {
-    return {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const options = {
         headless: "new",
         args: [
             '--no-sandbox',
@@ -18,6 +19,31 @@ const getPuppeteerOptions = () => {
             '--single-process'
         ]
     };
+
+    if (isProduction && process.env.PUPPETEER_EXECUTABLE_PATH) {
+        options.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    return options;
+};
+
+// Ensure URL has protocol
+const ensureValidUrl = (url) => {
+    if (!url) return null;
+    try {
+        // If URL is valid as-is, return it
+        new URL(url);
+        return url;
+    } catch (e) {
+        // If URL is invalid, try adding https://
+        try {
+            const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+            new URL(urlWithProtocol);
+            return urlWithProtocol;
+        } catch (e) {
+            return null;
+        }
+    }
 };
 
 app.use(express.static("public"));
@@ -27,23 +53,33 @@ app.get("/", (req, res) => {
 });
 
 app.get("/scan", async (req, res) => {
-    const url = req.query.url;
-    if (!url) return res.json({ error: "URL parameter is required." });
+    const url = ensureValidUrl(req.query.url);
+    if (!url) {
+        return res.status(400).json({ 
+            error: "Invalid URL provided. Please include protocol (http:// or https://) or provide a valid domain." 
+        });
+    }
 
     let browser;
     try {
         const options = getPuppeteerOptions();
-        console.log('Launching browser with options:', options);
+        console.log('Launching browser with options:', JSON.stringify(options, null, 2));
+        
         browser = await puppeteer.launch(options);
+        console.log('Browser launched successfully');
         
         const page = await browser.newPage();
+        console.log('New page created');
+        
         await page.setDefaultNavigationTimeout(30000);
+        console.log('Navigation timeout set');
         
         console.log('Navigating to URL:', url);
         await page.goto(url, { 
             waitUntil: "networkidle0",
             timeout: 30000 
         });
+        console.log('Navigation complete');
 
         // Convert functions to strings before injecting
         const serializedProviders = {};
@@ -56,7 +92,9 @@ app.get("/scan", async (req, res) => {
             window.cmpProviders = providers;
             window.cookiePatterns = patterns;
         }, serializedProviders, cookiePatterns);
+        console.log('Detection rules injected');
 
+        // Convert the stringified functions back to functions and check for CMPs
         const detectionResults = await page.evaluate(async () => {
             let detectedCMPs = [];
             let detectionDetails = {};
@@ -170,10 +208,12 @@ app.get("/scan", async (req, res) => {
         });
 
         await browser.close();
+        console.log('Browser closed');
         res.json(detectionResults);
     } catch (error) {
         console.error('Scan error:', error);
         if (browser) await browser.close();
+        console.log('Browser closed after error');
         res.status(500).json({ 
             error: "Failed to scan the website", 
             details: error.message 

@@ -3,6 +3,7 @@ services:
     name: cmp-detector
     env: node
     buildCommand: |
+      # Install Chrome dependencies
       apt-get update
       apt-get install -y \
         ca-certificates \
@@ -22,7 +23,14 @@ services:
         libxdamage1 \
         libxfixes3 \
         libxrandr2 \
-        xdg-utils
+        xdg-utils \
+        wget \
+        libpangocairo-1.0-0 \
+        libpango-1.0-0 \
+        libcairo2 \
+        libatspi2.0-0 \
+        libgtk2.0-0
+      # Create cache directory for Puppeteer
       mkdir -p /home/render/.cache/puppeteer
       npm install
     startCommand: node server.js
@@ -33,4 +41,6 @@ services:
         value: /home/render/.cache/puppeteer
       - key: PUPPETEER_SKIP_DOWNLOAD
         value: "false"
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/google-chrome-stable
     plan: free
