@@ -3,18 +3,12 @@ services:
     name: cmp-detector
     env: node
     buildCommand: |
-      apt-get update
-      apt-get install -y chromium
+      mkdir -p /home/render/.cache/puppeteer
       npm install
-    startCommand: |
-      echo "Chromium version:" && \
-      chromium --version && \
-      echo "Chromium location:" && \
-      which chromium && \
-      node server.js
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PUPPETEER_EXECUTABLE_PATH
-        value: /usr/bin/chromium
+      - key: PUPPETEER_CACHE_DIR
+        value: /home/render/.cache/puppeteer
     plan: free

@@ -1,5 +1,5 @@
 const express = require("express");
-const puppeteer = require("puppeteer-core");
+const puppeteer = require("puppeteer");
 const { cmpProviders, cookiePatterns } = require('./cmp-rules');
 const fs = require('fs');
 const { execSync } = require('child_process');
@@ -9,18 +9,6 @@ const PORT = process.env.PORT || 3000;
 
 // Configure Puppeteer options based on environment
 const getPuppeteerOptions = () => {
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
-    
-    // Debug logging
-    console.log('Checking Chromium installation...');
-    try {
-        console.log('Chromium path exists:', fs.existsSync(executablePath));
-        console.log('Chromium path stats:', fs.statSync(executablePath));
-        console.log('Chromium version:', execSync('chromium --version').toString());
-    } catch (error) {
-        console.error('Error checking Chromium:', error);
-    }
-    
     return {
         headless: "new",
         args: [
@@ -28,8 +16,7 @@ const getPuppeteerOptions = () => {
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--single-process'
-        ],
-        executablePath
+        ]
     };
 };
 
