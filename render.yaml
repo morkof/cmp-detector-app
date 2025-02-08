@@ -3,6 +3,7 @@ services:
     name: cmp-detector
     env: node
     buildCommand: |
+      mkdir -p /opt/render/.cache/puppeteer
       apt-get update
       apt-get install -y \
         ca-certificates \
@@ -46,4 +47,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/.cache/puppeteer
     plan: free
