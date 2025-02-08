@@ -3,21 +3,19 @@ services:
     name: cmp-detector
     env: node
     buildCommand: |
-      # Make install script executable
-      mkdir -p scripts
-      cat > scripts/install-chrome.sh << 'EOF'
-      #!/bin/bash
+      # Install Chrome directly
+      apt-get update
+      apt-get install -y wget gnupg
       wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
       echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list
       apt-get update
       apt-get install -y google-chrome-stable
-      EOF
-      chmod +x scripts/install-chrome.sh
 
-      # Install Chrome and its dependencies
-      ./scripts/install-chrome.sh
+      # Verify Chrome installation
+      google-chrome-stable --version
+      which google-chrome-stable
 
-      # Install dependencies for Chrome
+      # Install Chrome dependencies
       apt-get install -y \
         ca-certificates \
         fonts-liberation \
@@ -43,19 +41,16 @@ services:
         libatspi2.0-0 \
         libgtk2.0-0
 
-      # Create Puppeteer cache directory
-      mkdir -p /opt/render/.cache/puppeteer
-
       # Install Node dependencies
       npm install
+
+      # Test Chrome executable
+      ls -l /usr/bin/google-chrome-stable
+      /usr/bin/google-chrome-stable --version || true
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PUPPETEER_CACHE_DIR
-        value: /opt/render/.cache/puppeteer
-      - key: PUPPETEER_SKIP_DOWNLOAD
-        value: "true"
       - key: PUPPETEER_EXECUTABLE_PATH
         value: /usr/bin/google-chrome-stable
     plan: free

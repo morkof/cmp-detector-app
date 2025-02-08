@@ -1,11 +1,33 @@
 const express = require("express");
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-core");
 const { cmpProviders, cookiePatterns } = require('./cmp-rules');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Find Chrome executable path
+const findChromeExecutable = () => {
+    const paths = [
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser'
+    ];
+    
+    for (const path of paths) {
+        try {
+            fs.accessSync(path);
+            console.log('Found Chrome at:', path);
+            return path;
+        } catch (err) {
+            console.log('Chrome not found at:', path);
+        }
+    }
+    
+    throw new Error('Chrome executable not found');
+};
 
 // Configure Puppeteer options based on environment
 const getPuppeteerOptions = () => {
@@ -20,8 +42,13 @@ const getPuppeteerOptions = () => {
         ]
     };
 
-    if (isProduction && process.env.PUPPETEER_EXECUTABLE_PATH) {
-        options.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    try {
+        const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || findChromeExecutable();
+        console.log('Using Chrome executable path:', executablePath);
+        options.executablePath = executablePath;
+    } catch (err) {
+        console.error('Error finding Chrome:', err);
+        throw err;
     }
 
     return options;
