@@ -1,7 +1,7 @@
 services:
   - type: web
     name: cmp-detector
-    env: node
+    env: docker
     buildCommand: |
       # Install Chrome directly
       apt-get update
