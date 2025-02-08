@@ -11,6 +11,6 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "@playwright/test": "^1.41.2"
+    "puppeteer": "^22.0.0"
   }
 }
