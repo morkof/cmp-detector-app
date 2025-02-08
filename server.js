@@ -1,5 +1,5 @@
 const express = require("express");
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-core");
 const { cmpProviders, cookiePatterns } = require('./cmp-rules');
 const fs = require('fs');
 
@@ -15,7 +15,8 @@ const getPuppeteerOptions = () => {
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--single-process'
-        ]
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable'
     };
 };
 
