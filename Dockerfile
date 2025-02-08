@@ -1,6 +1,6 @@
 FROM node:18-slim
 
-# Install latest chrome package
+# Install latest chrome package and dependencies
 RUN apt-get update \
     && apt-get install -y wget gnupg \
     && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
@@ -26,10 +26,16 @@ RUN apt-get update \
         libxfixes3 \
         libxrandr2 \
         xdg-utils \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && wget --quiet https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -O /usr/sbin/wait-for-it \
+    && chmod +x /usr/sbin/wait-for-it
 
 # Create app directory
 WORKDIR /usr/src/app
+
+# Increase memory limits
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Install app dependencies
 COPY package*.json ./

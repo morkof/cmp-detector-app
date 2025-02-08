@@ -7,14 +7,28 @@ const { execSync } = require('child_process');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Constants
+const NAVIGATION_TIMEOUT = 60000; // 60 seconds
+const WAIT_UNTIL = 'domcontentloaded'; // Change from networkidle0 to domcontentloaded
+
 // Find Chrome executable path
 const findChromeExecutable = () => {
-    const paths = [
+    // Mac paths
+    const macPaths = [
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+        '/Applications/Chromium.app/Contents/MacOS/Chromium'
+    ];
+
+    // Linux paths
+    const linuxPaths = [
         '/usr/bin/google-chrome-stable',
         '/usr/bin/google-chrome',
         '/usr/bin/chromium',
         '/usr/bin/chromium-browser'
     ];
+
+    const paths = process.platform === 'darwin' ? [...macPaths, ...linuxPaths] : linuxPaths;
     
     for (const path of paths) {
         try {
@@ -26,7 +40,7 @@ const findChromeExecutable = () => {
         }
     }
     
-    throw new Error('Chrome executable not found');
+    throw new Error('Chrome executable not found. Please install Google Chrome.');
 };
 
 // Configure Puppeteer options based on environment
@@ -38,7 +52,16 @@ const getPuppeteerOptions = () => {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--single-process'
+            '--single-process',
+            '--disable-gpu',
+            '--disable-software-rasterizer',
+            '--disable-extensions',
+            '--no-zygote',
+            '--disable-accelerated-2d-canvas',
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--memory-pressure-off',
+            '--use-gl=swiftshader'
         ]
     };
 
@@ -98,13 +121,29 @@ app.get("/scan", async (req, res) => {
         const page = await browser.newPage();
         console.log('New page created');
         
-        await page.setDefaultNavigationTimeout(30000);
-        console.log('Navigation timeout set');
+        // Set various timeouts
+        await page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT);
+        await page.setDefaultTimeout(NAVIGATION_TIMEOUT);
+        console.log('Navigation timeout set to:', NAVIGATION_TIMEOUT);
+
+        // Set a reasonable viewport
+        await page.setViewport({ width: 1280, height: 800 });
         
+        // Block unnecessary resource types
+        await page.setRequestInterception(true);
+        page.on('request', (request) => {
+            const resourceType = request.resourceType();
+            if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+                request.abort();
+            } else {
+                request.continue();
+            }
+        });
+
         console.log('Navigating to URL:', url);
         await page.goto(url, { 
-            waitUntil: "networkidle0",
-            timeout: 30000 
+            waitUntil: WAIT_UNTIL,
+            timeout: NAVIGATION_TIMEOUT
         });
         console.log('Navigation complete');
 
