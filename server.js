@@ -8,8 +8,19 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Constants
-const NAVIGATION_TIMEOUT = 60000; // 60 seconds
-const WAIT_UNTIL = 'domcontentloaded'; // Change from networkidle0 to domcontentloaded
+const NAVIGATION_TIMEOUT = 30000; // Back to 30 seconds
+const WAIT_UNTIL = 'domcontentloaded';
+
+// Browser instance cache
+let browserInstance = null;
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    if (browserInstance) {
+        await browserInstance.close();
+    }
+    process.exit(0);
+});
 
 // Find Chrome executable path
 const findChromeExecutable = () => {
@@ -52,16 +63,23 @@ const getPuppeteerOptions = () => {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--single-process',
             '--disable-gpu',
-            '--disable-software-rasterizer',
             '--disable-extensions',
-            '--no-zygote',
-            '--disable-accelerated-2d-canvas',
             '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--memory-pressure-off',
-            '--use-gl=swiftshader'
+            '--aggressive-cache-discard',
+            '--disable-cache',
+            '--disable-application-cache',
+            '--disable-offline-load-stash',
+            '--disable-network-information',
+            '--disable-background-networking',
+            '--disable-default-apps',
+            '--disable-sync',
+            '--disable-translate',
+            '--hide-scrollbars',
+            '--metrics-recording-only',
+            '--mute-audio',
+            '--no-first-run',
+            '--safebrowsing-disable-auto-update'
         ]
     };
 
@@ -75,6 +93,17 @@ const getPuppeteerOptions = () => {
     }
 
     return options;
+};
+
+// Initialize browser instance
+const initBrowser = async () => {
+    if (!browserInstance) {
+        const options = getPuppeteerOptions();
+        console.log('Launching browser with options:', JSON.stringify(options, null, 2));
+        browserInstance = await puppeteer.launch(options);
+        console.log('Browser launched successfully');
+    }
+    return browserInstance;
 };
 
 // Ensure URL has protocol
@@ -110,35 +139,30 @@ app.get("/scan", async (req, res) => {
         });
     }
 
-    let browser;
+    let page;
     try {
-        const options = getPuppeteerOptions();
-        console.log('Launching browser with options:', JSON.stringify(options, null, 2));
-        
-        browser = await puppeteer.launch(options);
-        console.log('Browser launched successfully');
-        
-        const page = await browser.newPage();
+        const browser = await initBrowser();
+        page = await browser.newPage();
         console.log('New page created');
-        
+
         // Set various timeouts
         await page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT);
         await page.setDefaultTimeout(NAVIGATION_TIMEOUT);
-        console.log('Navigation timeout set to:', NAVIGATION_TIMEOUT);
 
-        // Set a reasonable viewport
-        await page.setViewport({ width: 1280, height: 800 });
-        
-        // Block unnecessary resource types
+        // Optimize performance
+        await page.setCacheEnabled(false);
         await page.setRequestInterception(true);
         page.on('request', (request) => {
             const resourceType = request.resourceType();
-            if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+            if (['image', 'stylesheet', 'font', 'media', 'other'].includes(resourceType)) {
                 request.abort();
             } else {
                 request.continue();
             }
         });
+
+        // Set minimal viewport
+        await page.setViewport({ width: 800, height: 600 });
 
         console.log('Navigating to URL:', url);
         await page.goto(url, { 
@@ -273,13 +297,13 @@ app.get("/scan", async (req, res) => {
             };
         });
 
-        await browser.close();
-        console.log('Browser closed');
+        await page.close();
+        console.log('Page closed');
         res.json(detectionResults);
     } catch (error) {
         console.error('Scan error:', error);
-        if (browser) await browser.close();
-        console.log('Browser closed after error');
+        if (page) await page.close();
+        console.log('Page closed after error');
         res.status(500).json({ 
             error: "Failed to scan the website", 
             details: error.message 
