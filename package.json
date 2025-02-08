@@ -1,16 +1,16 @@
 {
   "name": "cmp-detector-app",
   "version": "1.0.0",
-  "description": "CMP Detection Tool",
+  "description": "CMP Detector Application",
   "main": "server.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "puppeteer-core": "^22.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "puppeteer": "^22.0.0"
   }
 }

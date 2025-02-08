@@ -1,5 +1,5 @@
 const express = require("express");
-const puppeteer = require("puppeteer-core");
+const puppeteer = require("puppeteer");
 const { cmpProviders, cookiePatterns } = require('./cmp-rules');
 const fs = require('fs');
 
@@ -8,66 +8,15 @@ const PORT = process.env.PORT || 3000;
 
 // Configure Puppeteer options based on environment
 const getPuppeteerOptions = () => {
-    if (process.env.NODE_ENV === 'production') {
-        const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome';
-        console.log('Checking Chrome executable path:', executablePath);
-        try {
-            if (fs.existsSync(executablePath)) {
-                console.log('Chrome executable found at:', executablePath);
-            } else {
-                console.log('Chrome executable NOT found at:', executablePath);
-                // List contents of /usr/bin to help debug
-                if (fs.existsSync('/usr/bin')) {
-                    console.log('Contents of /usr/bin:');
-                    fs.readdirSync('/usr/bin').forEach(file => {
-                        if (file.includes('chrome') || file.includes('chromium')) {
-                            console.log('- ' + file);
-                        }
-                    });
-                }
-            }
-        } catch (error) {
-            console.error('Error checking Chrome executable:', error);
-        }
-
-        return {
-            headless: "new",
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--single-process',
-                '--disable-gpu'
-            ],
-            executablePath
-        };
-    }
-    
-    // Local development - try to find Chrome in standard locations
-    const possiblePaths = [
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS
-        '/usr/bin/google-chrome',                                      // Linux
-        '/usr/bin/chromium',                                          // Linux
-        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',  // Windows
-        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
-    ];
-
-    for (const path of possiblePaths) {
-        try {
-            if (fs.existsSync(path)) {
-                console.log('Found Chrome at:', path);
-                return {
-                    headless: "new",
-                    args: ['--no-sandbox'],
-                    executablePath: path
-                };
-            }
-        } catch (e) {
-            console.error(`Error checking path ${path}:`, e);
-        }
-    }
-
-    throw new Error('Could not find Chrome/Chromium installation. Please install Chrome or set PUPPETEER_EXECUTABLE_PATH.');
+    return {
+        headless: "new",
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--single-process'
+        ]
+    };
 };
 
 app.use(express.static("public"));
