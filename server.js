@@ -2,12 +2,25 @@ const express = require("express");
 const puppeteer = require("puppeteer-core");
 const { cmpProviders, cookiePatterns } = require('./cmp-rules');
 const fs = require('fs');
+const { execSync } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Configure Puppeteer options based on environment
 const getPuppeteerOptions = () => {
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable';
+    
+    // Debug logging
+    console.log('Checking Chrome installation...');
+    try {
+        console.log('Chrome path exists:', fs.existsSync(executablePath));
+        console.log('Chrome path stats:', fs.statSync(executablePath));
+        console.log('Chrome version:', execSync('google-chrome-stable --version').toString());
+    } catch (error) {
+        console.error('Error checking Chrome:', error);
+    }
+    
     return {
         headless: "new",
         args: [
@@ -16,7 +29,7 @@ const getPuppeteerOptions = () => {
             '--disable-dev-shm-usage',
             '--single-process'
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable'
+        executablePath
     };
 };
 

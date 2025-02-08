@@ -15,8 +15,15 @@ services:
         libnspr4 \
         libnss3 \
         libxss1
+      which google-chrome-stable
+      ls -l /usr/bin/google-chrome*
+      google-chrome-stable --version || true
       npm install
-    startCommand: node server.js
+    startCommand: |
+      which google-chrome-stable
+      ls -l /usr/bin/google-chrome*
+      google-chrome-stable --version || true
+      node server.js
     envVars:
       - key: NODE_ENV
         value: production
