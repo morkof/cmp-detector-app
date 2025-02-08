@@ -9,16 +9,16 @@ const PORT = process.env.PORT || 3000;
 
 // Configure Puppeteer options based on environment
 const getPuppeteerOptions = () => {
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable';
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
     
     // Debug logging
-    console.log('Checking Chrome installation...');
+    console.log('Checking Chromium installation...');
     try {
-        console.log('Chrome path exists:', fs.existsSync(executablePath));
-        console.log('Chrome path stats:', fs.statSync(executablePath));
-        console.log('Chrome version:', execSync('google-chrome-stable --version').toString());
+        console.log('Chromium path exists:', fs.existsSync(executablePath));
+        console.log('Chromium path stats:', fs.statSync(executablePath));
+        console.log('Chromium version:', execSync('chromium --version').toString());
     } catch (error) {
-        console.error('Error checking Chrome:', error);
+        console.error('Error checking Chromium:', error);
     }
     
     return {
