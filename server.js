@@ -1,5 +1,5 @@
 const express = require("express");
-const puppeteer = require("puppeteer");
+const { chromium } = require('@playwright/test');
 const { cmpProviders, cookiePatterns } = require('./cmp-rules');
 const fs = require('fs');
 const { execSync } = require('child_process');
@@ -7,15 +7,11 @@ const { execSync } = require('child_process');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configure Puppeteer options based on environment
-const getPuppeteerOptions = () => {
+// Configure browser options
+const getBrowserOptions = () => {
     return {
-        headless: "new",
         args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--single-process'
+            '--disable-dev-shm-usage'
         ]
     };
 };
@@ -28,22 +24,19 @@ app.get("/", (req, res) => {
 
 app.get("/scan", async (req, res) => {
     const url = req.query.url;
-    if (!url) return res.json({ error: "URL parameter is required." });
+    if (!url) {
+        return res.status(400).json({ error: "URL parameter is required" });
+    }
 
     let browser;
     try {
-        const options = getPuppeteerOptions();
-        console.log('Launching browser with options:', options);
-        browser = await puppeteer.launch(options);
-        
-        const page = await browser.newPage();
-        await page.setDefaultNavigationTimeout(30000);
-        
-        console.log('Navigating to URL:', url);
-        await page.goto(url, { 
-            waitUntil: "networkidle0",
-            timeout: 30000 
-        });
+        console.log('Launching browser...');
+        browser = await chromium.launch(getBrowserOptions());
+        const context = await browser.newContext();
+        const page = await context.newPage();
+
+        console.log(`Navigating to ${url}...`);
+        await page.goto(url, { waitUntil: 'networkidle' });
 
         // Convert functions to strings before injecting
         const serializedProviders = {};
